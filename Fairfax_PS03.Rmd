@@ -1,0 +1,230 @@
+---
+title: "PS03"
+author: "Fatima Fairfax"
+date: "9/4/21"
+output:
+  html_document:
+    df_print: paged
+---
+
+##PS03: Data Wrangling
+
+To set up, I'm running the relevant packages:
+```{r}
+library(ggplot2)
+library(dplyr)
+```
+
+Next I will load and take a look at the data we're using:
+```{r}
+data(txhousing)
+glimpse(txhousing)
+```
+
+
+**Question 1**
+
+The last city listed in the data set is Wichita Falls
+
+
+**Question 2**
+
+The variable 'listings' correspond to the total active listings
+
+
+Now I'm extracting the variables sales and volume:
+```{r}
+txhousing |> 
+  select(sales,volume)
+```
+
+Now I'm looking at the data set with all variables *except* the date:
+```{r}
+txhousing <- txhousing |> 
+  select(-date)
+```
+
+Filter to pull out specific rows based on criteria in the columns. First looking at all houses in the year 2012 in Austin:
+```{r}
+austin_12 <- txhousing |> 
+  filter(year == 2012, city == "Austin")
+```
+
+
+Now all houses in Austin before the year 2004:
+```{r}
+txhousing |> 
+  filter(year < 2004, city == "Austin")
+```
+
+Now houses in Austin or Abilene:
+```{r}
+aust_ab <- txhousing |> 
+  filter(city == "Austin" | city == "Abilene")
+```
+
+
+Now I'll mutate to add a new variable that indicates volume in units of 100k:
+```{r}
+txhousing <- txhousing |> 
+  mutate(vol_100k = volume/100000)
+```
+
+Now I'll provide summary stats for the Austin 2012 data to see the mean of sales:
+```{r}
+austin_12 |> summarize(x_bar_sales = mean(sales))
+```
+
+Now to look at a bunch of summaries at once:
+```{r}
+austin_12 |> summarize(x_bar_sales = mean(sales),
+                       sd_sales = sd(sales), 
+                        min_vol = min(volume), 
+                        max_vol = max(volume), 
+                        mdn_list = median(listings), 
+                        iqr_list = IQR(listings),
+                        sample_size = n())
+```
+
+Now I can arrange the data by the volume column:
+```{r}
+austin_12 |> 
+  arrange(desc(volume))
+```
+
+Finally, I can use group_by to look at data across levels of a variable. In this case, looking at the average number of monthly sales in Austin and Abilene across all years:
+```{r}
+aust_ab |> group_by(city) |> 
+  summarize(x_bar_sales = mean(sales))
+```
+
+I can also group_by multiple variables. This will show the average sales for each city for each month:
+```{r}
+aust_ab |> group_by(city, month) |> 
+  summarize(x_bar_sales = mean(sales))
+```
+
+
+**Question 3**
+
+I'll remove the inventory variable and overwrite the txhousing dataframe:
+```{r}
+txhousing <- txhousing |> select(-inventory)
+```
+
+
+**Question 4**
+
+Now I'll make a subset of the data for Dallas in 2012 and 2013:
+```{r}
+dallas_sub <- txhousing |> filter(city == "Dallas", year == 2012 | year == 2013)
+dallas_sub
+```
+
+
+**Question 5**
+
+Now adding a new column to dallas_sub that calculated the percentage of listing sold:
+```{r}
+dallas_sub <- dallas_sub |>
+  mutate(prct_sold = (sales/listings * 100))
+dallas_sub
+```
+
+**Question 6**
+
+Now calculating the average percentage of listing sold in each month of the year:
+```{r}
+dallas_summary <- dallas_sub |>
+  group_by(month) |> 
+  summarize(avg_prct_sold = mean(prct_sold))
+dallas_summary
+```
+
+
+**Question 7**
+
+Arranging the dallas_summary in desc order based on avg percent to show which had the largest. August (8) had the highest.
+```{r}
+dallas_summary |> arrange(desc(avg_prct_sold))
+```
+
+**Question 8**
+
+```{r}
+txhousing |>
+  filter(year == 2012 | year == 2013, city == "Dallas") |> 
+  mutate(prct_sold = sales/listings*100) |> 
+  group_by(month) |> 
+  summarize(mean_prct_sold = mean(prct_sold)) |> 
+  arrange(desc(mean_prct_sold))
+```
+
+The above code did all of the operations I just ran separately above. Specifically, it took the original data frame and (1) filtered it to only include listings in Dallas in 2012 or 2013, (2) added a new column that was percentage of listing sold, (3) grouped the data by month, (4) created a summary value of the average percent sold and, (5) arranged the resulting data in descending order of percent sold.
+
+
+**Question 9**
+
+In Jan 2015, the city with the fewest houses listed for sale was: San Marcos
+```{r}
+txhousing |>
+  filter(year == 2015, month == 1) |>
+  arrange(listings)
+```
+
+**Question 10**
+
+In 2012, the month where the most houses were sold was: August (8)
+```{r}
+txhousing |>
+  filter(year == 2012) |> 
+  group_by(month) |> 
+  summarize(month_sales = sum(sales)) |> 
+  arrange(desc(month_sales))
+```
+
+**Question 11**
+
+Now generate a single table showing number of houses sold in Austin in 2000 and 2001 and the total of houses sold in Dallas in 2000 and 2001.
+
+To do this, first I will select the relevant variables and filter for the cities and years I need to analyze: 
+```{r}
+aus_dall_0001 <- txhousing |>
+  select(city, year,sales) |> 
+  filter(city == "Austin" | city == "Dallas", year == 2000 | year == 2001)
+aus_dall_0001
+  
+```
+
+Then I will group_by city and sum up the sales:
+```{r}
+aus_dall_0001 <- aus_dall_0001 |> 
+  group_by(city, year) |> 
+  summarize(years_summed = sum(sales))
+aus_dall_0001
+```
+
+Now I'll try grouping by city to combine the years:
+```{r}
+aus_dall_0001 |> 
+  group_by(city) |> 
+  summarize(total_homes_sold = sum(years_summed))
+```
+
+This makes me think I could have just grouped by city above to get to this table. since I already selected out for relevant cities and years. I'll try it that way below to see if that's right:
+
+```{r}
+aus_dall_v2 <- txhousing |>
+  select(city, year,sales) |> 
+  filter(city == "Austin" | city == "Dallas", year == 2000 | year == 2001) |> 
+  group_by(city) |> 
+  summarize(total_homes_sold = sum(sales))
+aus_dall_v2
+```
+
+Yay! That worked. (Assuming these values are correct)
+
+
+
+
+
